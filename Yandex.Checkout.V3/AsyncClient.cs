@@ -1,5 +1,7 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
@@ -124,13 +126,27 @@ namespace Yandex.Checkout.V3
             => QueryAsync<Refund>(HttpMethod.Get, null, $"refunds/{id}", null, cancellationToken);
 
         /// <summary>
+        /// Query refund
+        /// </summary>
+        /// <param name="queryParams">query params</param>
+        /// <param name="cancellationToken"><see cref="CancellationToken"/></param>
+        /// <returns><see cref="Refund"/></returns>
+        public Task<RefundList> GetRefundsAsync(Dictionary<string, string> queryParams, CancellationToken cancellationToken = default)
+        {
+            var url = QueryParamsHelper.AddQueryString("refunds/", queryParams);
+            return QueryAsync<RefundList>(HttpMethod.Get, null, url, null, cancellationToken);
+        }
+
+        /// <summary>
         /// Receipt creation
         /// </summary>
         /// <param name="receipt">Receipt information, <see cref="SettlementReceipt"/></param>
         /// <param name="idempotenceKey">Idempotence key, use <value>null</value> to generate a new one</param>
         /// <param name="cancellationToken"><see cref="CancellationToken"/></param>
         /// <returns><see cref="SettlementReceipt"/></returns>
-        public Task<SettlementReceipt> CreateSettlementReceiptAsync(SettlementReceipt receipt, string idempotenceKey = null,
+        public Task<SettlementReceipt> CreateSettlementReceiptAsync(
+            SettlementReceipt receipt,
+            string idempotenceKey = null,
             CancellationToken cancellationToken = default)
             => QueryAsync<SettlementReceipt>(HttpMethod.Post, receipt, "receipts", idempotenceKey, cancellationToken);
 
@@ -146,12 +162,17 @@ namespace Yandex.Checkout.V3
         public Task<ReceiptInformation> GetReceiptAsync(string id, CancellationToken cancellationToken = default)
             => QueryAsync<ReceiptInformation>(HttpMethod.Get, null, $"receipts/{id}", null, cancellationToken);
 
-        private async Task<T> QueryAsync<T>(HttpMethod method, object body, string url, string idempotenceKey, CancellationToken cancellationToken)
+        private async Task<T> QueryAsync<T>(
+            HttpMethod method,
+            object body,
+            string url,
+            string idempotenceKey,
+            CancellationToken cancellationToken)
         {
             using var request = CreateRequest(method, body, url, idempotenceKey ?? Guid.NewGuid().ToString());
 
             using var response = await _httpClient.SendAsync(request, cancellationToken);
-            
+
             string responseData = response.Content == null
                 ? null
                 : await response.Content.ReadAsStringAsync();
@@ -159,7 +180,10 @@ namespace Yandex.Checkout.V3
             return Client.ProcessResponse<T>(response.StatusCode, responseData, response.Content?.Headers?.ContentType?.MediaType ?? string.Empty);
         }
 
-        private static HttpRequestMessage CreateRequest(HttpMethod method, object body, string url,
+        private static HttpRequestMessage CreateRequest(
+            HttpMethod method,
+            object body,
+            string url,
             string idempotenceKey)
         {
             var request = new HttpRequestMessage(method, url)
